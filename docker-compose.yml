@@ -1,0 +1,16 @@
+version: "3.4"
+
+services:
+  php-fpm80:
+    build: docker/php-fpm80
+    volumes:
+      - ./:/code
+    depends_on:
+      - caddy
+
+  caddy:
+    build: docker/caddy
+    volumes:
+      - ./:/code
+    ports:
+      - 8000:80

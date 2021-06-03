@@ -2,69 +2,80 @@
 
 namespace App\Components\ShortestPath;
 
-use App\Models\FacebookFriend;
 use Ds\Queue;
 use Ds\Vector;
-use Illuminate\Support\Collection;
 
 /**
  * @author Mohammed Mudassir <hello@mudasir.me>
  */
 class BreadthFirstSearchAlgorithm
 {
+    // Space is undiscovered object. If it is empty then nothing is discover.
+    protected Vector $space;
+
+    // Queuing all the nodes to be process and discover edges.
     protected Queue $queue;
 
-    protected array $visited = [];
+    // Paths are the adjacency list of all the shortest path.
+    protected array $paths = [];
 
-    protected array $path = [];
+    // Limiting iteration as deeper we go with the nodes.
+    protected int $depth = 5;
 
+    /**
+     * @param FacebookFriendAggregator $aggregator
+     */
     public function __construct(protected FacebookFriendAggregator $aggregator)
     {
-        $this->queue = new Queue();
+        $this->space = new Vector;
+        $this->queue = new Queue;
     }
 
+    /**
+     * @param $origin
+     * @param $destination
+     * @return Vector
+     */
     public function search($origin, $destination): Vector
     {
-        if ($node = $this->aggregator->findNode($origin, $destination)) {
-            $path = new Vector;
-            $path->push($destination);
-            $path->push($origin);
-
-            return $path;
-        }
-
-        // Space is undiscovered object. If it is empty then nothing is discover.
-        $space = new Vector;
-        $queue = new Queue;
-
-        // Paths are the adjacency list of all the shortest path.
-        $paths = [];
         $paths[$origin] = new Vector;
 
         // First get all the first node friends of origin's friend.
-        $queue->push(...$edges = $this->aggregator->getNodeEdges($origin));
-        $space->push($origin);
+        $this->queue->push(...$edges = $this->aggregator->getNodeEdges($origin));
+        $this->space->push($origin);
 
         foreach ($edges as $edge) {
-            $paths[$edge] = new Vector;
-            $paths[$edge]->push($origin);
+            $this->paths[$edge] = new Vector;
+            $this->paths[$edge]->push($origin);
         }
 
-        while (! $queue->isEmpty()) {
-            // Check if we have already processed the node.
-            if (! empty($space->find($node = $queue->pop()))) {
-                continue;
-            }
+        while (! $this->queue->isEmpty()) {
+            $node = $this->queue->pop();
 
-            $queue->push(...$edges = $this->aggregator->getNodeEdges($node));
-            $space->push($node);
+            // Check if we have already processed the node.
+            if ($this->hasNodeInSpace($node)) continue;
+
+            $this->queue->push(...$edges = $this->aggregator->getNodeEdges($node));
+            $this->space->push($node);
 
             foreach ($edges as $edge) {
-                $paths[$edge] ??= new Vector;
-                $paths[$edge]->push($node);
+                $this->paths[$edge] = clone $this->paths[$node];
+                $this->paths[$edge]->push($node);
+
+                // We found the shortest path. No need to proceed further.
+                if ($edge == $destination) {
+                    $this->paths[$edge]->push($destination);
+
+                    break 2;
+                }
             }
         }
 
-        return $paths[$destination];
+        return $this->paths[$destination];
+    }
+
+    protected function hasNodeInSpace($node): bool
+    {
+        return ! empty($this->space->find($node));
     }
 }

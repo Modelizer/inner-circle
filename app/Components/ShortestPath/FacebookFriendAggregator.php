@@ -35,7 +35,7 @@ class FacebookFriendAggregator
             ->whereNotIn('user_id', $exclude)
             ->whereNotIn('friend_id', $exclude)
             ->get(['user_id', 'friend_id'])
-            ->map(function (FacebookFriend $facebookFriend) {
+            ->map(function (FacebookFriend $facebookFriend) use ($value) {
                 return [$facebookFriend->user_id, $facebookFriend->friend_id];
             })
             ->flatten()
